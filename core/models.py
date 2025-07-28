@@ -1,6 +1,5 @@
-# models.py
-
 from django.db import models
+from django.contrib.auth.models import User
 
 class Category(models.Model):
     name = models.CharField(max_length=100)
@@ -27,3 +26,26 @@ class Participant(models.Model):
 
     def __str__(self):
         return self.name
+
+
+
+class RSVP(models.Model):
+    ATTENDING = 'attending'
+    NOT_ATTENDING = 'not_attending'
+    MAYBE = 'maybe'
+    STATUS_CHOICES = [
+        (ATTENDING, 'Attending'),
+        (NOT_ATTENDING, 'Not Attending'),
+        (MAYBE, 'Maybe'),
+    ]
+
+    participant = models.ForeignKey(Participant, on_delete=models.CASCADE, related_name='rsvps')
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='rsvps')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=ATTENDING)
+    responded_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('participant', 'event')
+
+    def __str__(self):
+        return f"{self.participant.name} - {self.event.name} ({self.status})"

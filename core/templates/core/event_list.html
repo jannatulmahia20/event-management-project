@@ -49,13 +49,17 @@
       <td class="border border-gray-300 px-4 py-2 space-x-2">
         <a href="{% url 'event_update' event.pk %}" class="text-blue-600 hover:underline">Edit</a>
         <a href="{% url 'event_delete' event.pk %}" class="text-red-600 hover:underline">Delete</a>
+        <a href="{% url 'rsvp_create_or_update' event.id %}" class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700">RSVP</a>
       </td>
     </tr>
     {% empty %}
-    <tr><td colspan="5" class="text-center py-4">No events found.</td></tr>
+    <tr>
+      <td colspan="5" class="text-center py-4">No events found.</td>
+    </tr>
     {% endfor %}
   </tbody>
 </table>
 
 <a href="{% url 'event_create' %}" class="inline-block mt-6 bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">+ Add Event</a>
+
 {% endblock %}
