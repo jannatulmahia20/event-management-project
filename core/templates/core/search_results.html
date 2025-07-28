@@ -1,0 +1,27 @@
+{% extends 'core/base.html' %}
+{% block title %}Search Results{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold mb-6">Search Results for "{{ query }}"</h1>
+
+<table class="w-full border-collapse border border-gray-300">
+  <thead>
+    <tr class="bg-gray-200">
+      <th class="border border-gray-300 px-4 py-2">Name</th>
+      <th class="border border-gray-300 px-4 py-2">Category</th>
+      <th class="border border-gray-300 px-4 py-2 text-center">Date</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for event in events %}
+    <tr class="hover:bg-gray-100">
+      <td class="border border-gray-300 px-4 py-2">{{ event.name }}</td>
+      <td class="border border-gray-300 px-4 py-2">{{ event.category.name }}</td>
+      <td class="border border-gray-300 px-4 py-2 text-center">{{ event.date }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="3" class="text-center py-4">No events found matching your query.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

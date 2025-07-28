@@ -1,0 +1,61 @@
+{% extends 'core/base.html' %}
+{% block title %}Events{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold mb-6">Events</h1>
+
+<form method="get" class="mb-6 flex flex-wrap gap-4 items-end">
+  <div>
+    <label for="category" class="block font-semibold mb-1">Category</label>
+    <select name="category" id="category" class="border rounded p-2">
+      <option value="">All Categories</option>
+      {% for category in categories %}
+        <option value="{{ category.id }}" {% if category.id|stringformat:"s" == selected_category %}selected{% endif %}>{{ category.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <label for="start_date" class="block font-semibold mb-1">Start Date</label>
+    <input type="date" name="start_date" id="start_date" value="{{ start_date }}" class="border rounded p-2" />
+  </div>
+
+  <div>
+    <label for="end_date" class="block font-semibold mb-1">End Date</label>
+    <input type="date" name="end_date" id="end_date" value="{{ end_date }}" class="border rounded p-2" />
+  </div>
+
+  <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Filter</button>
+  <a href="{% url 'event_list' %}" class="ml-4 text-gray-600 hover:underline">Clear</a>
+</form>
+
+<table class="w-full border-collapse border border-gray-300">
+  <thead>
+    <tr class="bg-gray-200">
+      <th class="border border-gray-300 px-4 py-2">Name</th>
+      <th class="border border-gray-300 px-4 py-2">Category</th>
+      <th class="border border-gray-300 px-4 py-2 text-center">Participants</th>
+      <th class="border border-gray-300 px-4 py-2">Date</th>
+      <th class="border border-gray-300 px-4 py-2">Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for event in events %}
+    <tr class="hover:bg-gray-100">
+      <td class="border border-gray-300 px-4 py-2">{{ event.name }}</td>
+      <td class="border border-gray-300 px-4 py-2">{{ event.category.name }}</td>
+      <td class="border border-gray-300 px-4 py-2 text-center">{{ event.participant_count }}</td>
+      <td class="border border-gray-300 px-4 py-2">{{ event.date }}</td>
+      <td class="border border-gray-300 px-4 py-2 space-x-2">
+        <a href="{% url 'event_update' event.pk %}" class="text-blue-600 hover:underline">Edit</a>
+        <a href="{% url 'event_delete' event.pk %}" class="text-red-600 hover:underline">Delete</a>
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="5" class="text-center py-4">No events found.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<a href="{% url 'event_create' %}" class="inline-block mt-6 bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">+ Add Event</a>
+{% endblock %}
