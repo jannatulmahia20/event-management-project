@@ -34,4 +34,7 @@ urlpatterns = [
     path('signup/', views.signup_view, name='signup'),
     path('login/', login_view, name='login'),
     path('logout/', LogoutView.as_view(next_page='login'), name='logout'),
+    path('profile/', views.profile_view, name='profile'),
+    path('profile/edit/', views.profile_edit, name='profile_edit'),
+   path('activate/<uidb64>/<token>/', views.activate_account, name='activate'),
 ]

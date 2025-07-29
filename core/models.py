@@ -20,9 +20,13 @@ class Event(models.Model):
         return self.name
 
 class Participant(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
+
     name = models.CharField(max_length=100)
     email = models.EmailField()
     events = models.ManyToManyField(Event, related_name='participants')
+    phone = models.CharField(max_length=20, blank=True, null=True)
+    address = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return self.name
@@ -43,6 +47,8 @@ class RSVP(models.Model):
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='rsvps')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=ATTENDING)
     responded_at = models.DateTimeField(auto_now=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    comment = models.TextField(blank=True, null=True) 
 
     class Meta:
         unique_together = ('participant', 'event')

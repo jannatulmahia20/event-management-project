@@ -12,6 +12,23 @@ from .models import Category, Event, Participant, RSVP
 from .forms import EventForm, CategoryForm, ParticipantForm, SignupForm, RSVPForm
 from .decorators import group_required
 
+from django.contrib.auth.models import Group
+from django.core.exceptions import PermissionDenied
+from .forms import UserUpdateForm, ParticipantUpdateForm
+
+from django.contrib.sites.shortcuts import get_current_site
+from django.template.loader import render_to_string
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import send_mail
+from django.conf import settings
+from django.contrib.auth.models import User
+
+
+
+
+
 
 @login_required
 def dashboard_view(request):
@@ -51,30 +68,37 @@ def category_list(request):
     return render(request, 'core/category_list.html', {'categories': categories})
 
 
+
+
 @login_required
 def event_list(request):
-    events = Event.objects.select_related('category').prefetch_related('participants').annotate(participant_count=Count('participants'))
+    events = Event.objects.all()
 
+    # Filter by category and date
     category_id = request.GET.get('category')
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
 
     if category_id:
         events = events.filter(category_id=category_id)
-    if start_date and end_date:
-        events = events.filter(date__range=[start_date, end_date])
+    if start_date:
+        events = events.filter(date__gte=start_date)
+    if end_date:
+        events = events.filter(date__lte=end_date)
+
+    # Restrict organizers to only their own events
+    if request.user.groups.filter(name='Organizer').exists():
+        events = events.filter(created_by=request.user)
 
     categories = Category.objects.all()
 
-    context = {
+    return render(request, 'core/event_list.html', {
         'events': events,
         'categories': categories,
         'selected_category': category_id,
         'start_date': start_date,
         'end_date': end_date,
-    }
-    return render(request, 'core/event_list.html', context)
-
+    })
 
 @login_required
 def participant_list(request):
@@ -101,7 +125,13 @@ def event_create(request):
     if request.method == 'POST':
         form = EventForm(request.POST)
         if form.is_valid():
-            form.save()
+            event = form.save(commit=False)
+
+            # Assign created_by only if user is an Organizer
+            if request.user.groups.filter(name='Organizer').exists():
+                event.created_by = request.user
+
+            event.save()
             messages.success(request, "Event created successfully.")
             return redirect('event_list')
     else:
@@ -113,6 +143,11 @@ def event_create(request):
 @group_required('Admin', 'Organizer')
 def event_update(request, pk):
     event = get_object_or_404(Event, pk=pk)
+
+    # Restrict access to only the creator or admin
+    if request.user != event.created_by and not request.user.is_superuser:
+        raise PermissionDenied
+
     if request.method == 'POST':
         form = EventForm(request.POST, instance=event)
         if form.is_valid():
@@ -124,10 +159,16 @@ def event_update(request, pk):
     return render(request, 'core/event_form.html', {'form': form})
 
 
+
 @login_required
 @group_required('Admin', 'Organizer')
 def event_delete(request, pk):
     event = get_object_or_404(Event, pk=pk)
+
+    # Restrict access to only the creator or admin
+    if request.user != event.created_by and not request.user.is_superuser:
+        raise PermissionDenied
+
     if request.method == 'POST':
         event.delete()
         messages.success(request, "Event deleted successfully.")
@@ -216,18 +257,24 @@ def participant_delete(request, pk):
 
 
 # Auth Views
+
+
 def signup_view(request):
     if request.method == 'POST':
         form = SignupForm(request.POST)
         if form.is_valid():
             user = form.save(commit=False)
-            user.is_active = False  # Manual activation for now
+            user.is_active = False
             user.save()
+            # send activation email (your existing code)...
             messages.success(request, 'Account created! Please check your email to activate your account.')
             return redirect('login')
+        else:
+            messages.error(request, 'Please provide correct info.')
     else:
         form = SignupForm()
     return render(request, 'core/signup.html', {'form': form})
+
 
 
 def login_view(request):
@@ -254,7 +301,11 @@ def login_view(request):
 @login_required
 def rsvp_create_or_update(request, event_id):
     event = get_object_or_404(Event, id=event_id)
-    participant = get_object_or_404(Participant, user=request.user)
+    try:
+        participant = Participant.objects.get(user=request.user)
+    except Participant.DoesNotExist:
+        messages.error(request, "You are not registered as a participant.")
+        return redirect('event_list')
 
     rsvp, created = RSVP.objects.get_or_create(event=event, participant=participant)
 
@@ -267,8 +318,56 @@ def rsvp_create_or_update(request, event_id):
     else:
         form = RSVPForm(instance=rsvp)
 
-    context = {
-        'form': form,
-        'event': event,
-    }
-    return render(request, 'core/rsvp_form.html', context)
+    return render(request, 'core/rsvp_form.html', {'form': form, 'event': event})
+
+
+
+
+@login_required
+def profile_view(request):
+    participant = get_object_or_404(Participant, user=request.user)
+    return render(request, 'core/profile.html', {'participant': participant})
+
+
+
+
+
+@login_required
+def profile_edit(request):
+    participant = get_object_or_404(Participant, user=request.user)
+
+    if request.method == 'POST':
+        user_form = UserUpdateForm(request.POST, instance=request.user)
+        participant_form = ParticipantUpdateForm(request.POST, instance=participant)
+        if user_form.is_valid() and participant_form.is_valid():
+            user_form.save()
+            participant_form.save()
+            messages.success(request, 'Your profile has been updated.')
+            return redirect('profile')
+    else:
+        user_form = UserUpdateForm(instance=request.user)
+        participant_form = ParticipantUpdateForm(instance=participant)
+
+    return render(request, 'core/profile_edit.html', {
+        'user_form': user_form,
+        'participant_form': participant_form,
+    })
+
+
+
+from django.contrib.auth import get_user_model
+
+def activate_account(request, uidb64, token):
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = get_user_model().objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, get_user_model().DoesNotExist):
+        user = None
+
+    if user and default_token_generator.check_token(user, token):
+        user.is_active = True
+        user.save()
+        messages.success(request, "Account activated! You can now log in.")
+        return redirect('login')
+    else:
+        return render(request, 'core/account_activation_invalid.html')

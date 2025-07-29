@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block title %}My Profile{% endblock %}
+
+{% block content %}
+<h1>My Profile</h1>
+
+<p><strong>Username:</strong> {{ participant.user.username }}</p>
+<p><strong>First Name:</strong> {{ participant.user.first_name }}</p>
+<p><strong>Last Name:</strong> {{ participant.user.last_name }}</p>
+<p><strong>Email:</strong> {{ participant.user.email }}</p>
+
+<!-- Add any Participant fields you want to display -->
+<p><strong>Phone:</strong> {{ participant.phone }}</p>
+<p><strong>Address:</strong> {{ participant.address }}</p>
+
+<a href="{% url 'profile_edit' %}">Edit Profile</a>
+{% endblock %}

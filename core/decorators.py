@@ -8,7 +8,7 @@ def group_required(*group_names):
     """
     def in_groups(user):
         if user.is_authenticated:
-            if bool(user.groups.filter(name__in=group_names)) or user.is_superuser:
+            if user.is_superuser or user.groups.filter(name__in=group_names).exists():
                 return True
-        raise PermissionDenied  
+        raise PermissionDenied
     return user_passes_test(in_groups)
