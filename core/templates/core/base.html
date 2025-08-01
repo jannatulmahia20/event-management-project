@@ -4,20 +4,32 @@
   <meta charset="UTF-8" />
   <title>{% block title %}Event Management System{% endblock %}</title>
   <script src="https://cdn.tailwindcss.com"></script>
+
 </head>
 <body class="bg-gray-100 text-gray-900 font-sans min-h-screen">
 
-  <nav class="bg-blue-600 p-4 text-white flex justify-between items-center">
-    <div class="font-bold text-xl">Event System</div>
-    <div class="space-x-4">
-      <a href="{% url 'dashboard' %}" class="hover:underline">Dashboard</a>
-      <a href="{% url 'event_list' %}" class="hover:underline">Events</a>
-      <a href="{% url 'category_list' %}" class="hover:underline">Categories</a>
-      <a href="{% url 'participant_list' %}" class="hover:underline">Participants</a>
-      <a href="{% url 'event_search' %}?q=" class="hover:underline">Search</a>
-    </div>
-  </nav>
-
+    <nav class="bg-blue-600 p-4 text-white flex justify-between items-center">
+        <div class="font-bold text-xl">Event System</div>
+        
+        <div class="space-x-4">
+          <a href="{% url 'dashboard' %}" class="hover:underline">Dashboard</a>
+          <a href="{% url 'event_list' %}" class="hover:underline">Events</a>
+          <a href="{% url 'category_list' %}" class="hover:underline">Categories</a>
+          <a href="{% url 'participant_list' %}" class="hover:underline">Participants</a>
+          <a href="{% url 'event_search' %}?q=" class="hover:underline">Search</a>
+      
+          {% if user.is_authenticated %}
+          <form method="post" action="{% url 'logout' %}" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-link">Logout</button>
+          </form>
+          {% else %}
+            <a href="{% url 'login' %}" class="hover:underline">Login</a>
+            <a href="{% url 'signup' %}" class="hover:underline">Sign Up</a>
+          {% endif %}
+        </div>
+      </nav>
+      
   <main class="container mx-auto p-6">
     {% if messages %}
       <div>

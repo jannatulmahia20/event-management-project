@@ -18,7 +18,8 @@
     <tr class="hover:bg-gray-100">
       <td class="border border-gray-300 px-4 py-2">{{ category.name }}</td>
       <td class="border border-gray-300 px-4 py-2">{{ category.description }}</td>
-      <td class="border border-gray-300 px-4 py-2">{{ category.events.count }}</td>
+      <td class="border border-gray-300 px-4 py-2"> {{ category.event_set.count }}
+      </td>
       <td class="border border-gray-300 px-4 py-2 space-x-2">
         <a href="{% url 'category_update' category.pk %}" class="text-blue-600 hover:underline">Edit</a>
         <a href="{% url 'category_delete' category.pk %}" class="text-red-600 hover:underline">Delete</a>
