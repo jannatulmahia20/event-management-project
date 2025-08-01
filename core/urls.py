@@ -26,6 +26,7 @@ urlpatterns = [
     path('categories/create/', views.category_create, name='category_create'),
     path('categories/<int:pk>/edit/', views.category_update, name='category_update'),
     path('categories/<int:pk>/delete/', views.category_delete, name='category_delete'),
+    path('categories/', views.category_list, name='category_list'),
 
     path('participants/create/', views.participant_create, name='participant_create'),
     path('participants/<int:pk>/edit/', views.participant_update, name='participant_update'),
@@ -36,5 +37,5 @@ urlpatterns = [
     path('logout/', LogoutView.as_view(next_page='login'), name='logout'),
     path('profile/', views.profile_view, name='profile'),
     path('profile/edit/', views.profile_edit, name='profile_edit'),
-   path('activate/<uidb64>/<token>/', views.activate_account, name='activate'),
+    path('activate/<uidb64>/<token>/', views.activate_account, name='activate'),
 ]

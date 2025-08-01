@@ -64,9 +64,8 @@ def dashboard_view(request):
 
 @login_required
 def category_list(request):
-    categories = Category.objects.prefetch_related('events')
+    categories = Category.objects.all()
     return render(request, 'core/category_list.html', {'categories': categories})
-
 
 
 
