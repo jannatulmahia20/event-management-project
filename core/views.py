@@ -26,11 +26,14 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 User = get_user_model()
 
-
 from django.utils.decorators import method_decorator
 from django.views import View
+from django.views.generic import ListView, CreateView, UpdateView, DeleteView
+from django.urls import reverse_lazy
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 
 
+# Dashboard View
 @method_decorator(login_required, name='dispatch')
 class DashboardView(View):
     def get(self, request):
@@ -64,9 +67,7 @@ class DashboardView(View):
         return render(request, 'core/dashboard.html', context)
 
 
-
-from django.views.generic import ListView
-
+# Category List View
 @method_decorator(login_required, name='dispatch')
 class CategoryListView(ListView):
     model = Category
@@ -74,10 +75,7 @@ class CategoryListView(ListView):
     context_object_name = 'categories'
 
 
-
-from django.views.generic import ListView
-from django.utils.decorators import method_decorator
-
+# Event List View
 @method_decorator(login_required, name='dispatch')
 class EventListView(ListView):
     model = Event
@@ -111,10 +109,7 @@ class EventListView(ListView):
         return context
 
 
-
-from django.views.generic import ListView
-from django.utils.decorators import method_decorator
-
+# Participant List View
 @method_decorator(login_required, name='dispatch')
 class ParticipantListView(ListView):
     model = Participant
@@ -125,9 +120,7 @@ class ParticipantListView(ListView):
         return Participant.objects.prefetch_related('events')
 
 
-from django.views.generic import ListView
-from django.utils.decorators import method_decorator
-
+# Event Search View
 @method_decorator(login_required, name='dispatch')
 class EventSearchView(ListView):
     model = Event
@@ -150,66 +143,48 @@ class EventSearchView(ListView):
         return context
 
 
+# Event CRUD - Create
+class EventCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    model = Event
+    form_class = EventForm
+    template_name = 'core/event_form.html'
+    success_url = reverse_lazy('event_list')
 
-# Event CRUD
-@login_required
-@group_required('Admin', 'Organizer')
-def event_create(request):
-    if request.method == 'POST':
-        form = EventForm(request.POST)
-        if form.is_valid():
-            event = form.save(commit=False)
+    def form_valid(self, form):
+        if self.request.user.groups.filter(name='Organizer').exists():
+            form.instance.created_by = self.request.user
+        return super().form_valid(form)
 
-            # Assign created_by only if user is an Organizer
-            if request.user.groups.filter(name='Organizer').exists():
-                event.created_by = request.user
-
-            event.save()
-            messages.success(request, "Event created successfully.")
-            return redirect('event_list')
-    else:
-        form = EventForm()
-    return render(request, 'core/event_form.html', {'form': form})
+    def test_func(self):
+        return self.request.user.groups.filter(name__in=['Admin', 'Organizer']).exists()
 
 
-@login_required
-@group_required('Admin', 'Organizer')
-def event_update(request, pk):
-    event = get_object_or_404(Event, pk=pk)
+# Event CRUD - Update
+class EventUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    model = Event
+    form_class = EventForm
+    template_name = 'core/event_form.html'
+    success_url = reverse_lazy('event_list')
 
-    # Restrict access to only the creator or admin
-    if request.user != event.created_by and not request.user.is_superuser:
-        raise PermissionDenied
-
-    if request.method == 'POST':
-        form = EventForm(request.POST, instance=event)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Event updated successfully.")
-            return redirect('event_list')
-    else:
-        form = EventForm(instance=event)
-    return render(request, 'core/event_form.html', {'form': form})
+    def test_func(self):
+        event = self.get_object()
+        return (self.request.user == event.created_by or self.request.user.is_superuser) and \
+               self.request.user.groups.filter(name__in=['Admin', 'Organizer']).exists()
 
 
+# Event CRUD - Delete
+class EventDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    model = Event
+    template_name = 'core/event_confirm_delete.html'
+    success_url = reverse_lazy('event_list')
 
-@login_required
-@group_required('Admin', 'Organizer')
-def event_delete(request, pk):
-    event = get_object_or_404(Event, pk=pk)
-
-    # Restrict access to only the creator or admin
-    if request.user != event.created_by and not request.user.is_superuser:
-        raise PermissionDenied
-
-    if request.method == 'POST':
-        event.delete()
-        messages.success(request, "Event deleted successfully.")
-        return redirect('event_list')
-    return render(request, 'core/event_confirm_delete.html', {'event': event})
+    def test_func(self):
+        event = self.get_object()
+        return (self.request.user == event.created_by or self.request.user.is_superuser) and \
+               self.request.user.groups.filter(name__in=['Admin', 'Organizer']).exists()
 
 
-# Category CRUD
+# Category CRUD - Create
 @login_required
 @group_required('Admin')
 def category_create(request):
@@ -224,6 +199,7 @@ def category_create(request):
     return render(request, 'core/category_form.html', {'form': form})
 
 
+# Category CRUD - Update
 @login_required
 @group_required('Admin')
 def category_update(request, pk):
@@ -239,6 +215,7 @@ def category_update(request, pk):
     return render(request, 'core/category_form.html', {'form': form})
 
 
+# Category CRUD - Delete
 @login_required
 @group_required('Admin')
 def category_delete(request, pk):
@@ -250,7 +227,7 @@ def category_delete(request, pk):
     return render(request, 'core/category_confirm_delete.html', {'category': category})
 
 
-# Participant CRUD
+# Participant CRUD - Create
 @login_required
 @group_required('Admin', 'Organizer')
 def participant_create(request):
@@ -265,6 +242,7 @@ def participant_create(request):
     return render(request, 'core/participant_form.html', {'form': form})
 
 
+# Participant CRUD - Update
 @login_required
 def participant_update(request, pk):
     participant = get_object_or_404(Participant, pk=pk)
@@ -279,6 +257,7 @@ def participant_update(request, pk):
     return render(request, 'core/participant_form.html', {'form': form})
 
 
+# Participant CRUD - Delete
 @login_required
 def participant_delete(request, pk):
     participant = get_object_or_404(Participant, pk=pk)
@@ -289,9 +268,7 @@ def participant_delete(request, pk):
     return render(request, 'core/participant_confirm_delete.html', {'participant': participant})
 
 
-# Auth Views
-
-
+# Auth - Signup
 def signup_view(request):
     if request.method == 'POST':
         form = SignupForm(request.POST)
@@ -299,7 +276,7 @@ def signup_view(request):
             user = form.save(commit=False)
             user.is_active = False
             user.save()
-            # send activation email (your existing code)...
+            # Add sending activation email logic here if needed
             messages.success(request, 'Account created! Please check your email to activate your account.')
             return redirect('login')
         else:
@@ -309,7 +286,7 @@ def signup_view(request):
     return render(request, 'core/signup.html', {'form': form})
 
 
-
+# Auth - Login
 def login_view(request):
     if request.method == 'POST':
         form = AuthenticationForm(request, data=request.POST)
@@ -330,7 +307,7 @@ def login_view(request):
     return render(request, 'core/login.html', {'form': form})
 
 
-# RSVP
+# RSVP Create or Update
 @login_required
 def rsvp_create_or_update(request, event_id):
     event = get_object_or_404(Event, id=event_id)
@@ -354,17 +331,14 @@ def rsvp_create_or_update(request, event_id):
     return render(request, 'core/rsvp_form.html', {'form': form, 'event': event})
 
 
-
-
+# Profile View
 @login_required
 def profile_view(request):
     participant = get_object_or_404(Participant, user=request.user)
     return render(request, 'core/profile.html', {'participant': participant})
 
 
-
-
-
+# Profile Edit
 @login_required
 def profile_edit(request):
     participant = get_object_or_404(Participant, user=request.user)
@@ -387,9 +361,7 @@ def profile_edit(request):
     })
 
 
-
-from django.contrib.auth import get_user_model
-
+# Account Activation
 def activate_account(request, uidb64, token):
     try:
         uid = force_str(urlsafe_base64_decode(uidb64))
