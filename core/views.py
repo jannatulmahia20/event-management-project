@@ -23,98 +23,132 @@ from django.utils.encoding import force_bytes, force_str
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
 from django.conf import settings
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+User = get_user_model()
+
+
+from django.utils.decorators import method_decorator
+from django.views import View
+
+
+@method_decorator(login_required, name='dispatch')
+class DashboardView(View):
+    def get(self, request):
+        total_events = Event.objects.count()
+        total_participants = Participant.objects.count()
+        upcoming_events = Event.objects.filter(date__gt=date.today()).count()
+        past_events = Event.objects.filter(date__lt=date.today()).count()
+        today_events = Event.objects.filter(date=date.today())
+
+        filter_type = request.GET.get('filter', 'all')
+
+        if filter_type == 'upcoming':
+            events_list = Event.objects.filter(date__gt=date.today()).order_by('date')
+        elif filter_type == 'past':
+            events_list = Event.objects.filter(date__lt=date.today()).order_by('-date')
+        else:
+            events_list = Event.objects.all().order_by('date')
+
+        events_list = events_list.annotate(participant_count=Count('participants')).select_related('category')
+
+        context = {
+            'total_events': total_events,
+            'total_participants': total_participants,
+            'upcoming_events': upcoming_events,
+            'past_events': past_events,
+            'today_events': today_events,
+            'events_list': events_list,
+            'filter_type': filter_type,
+            'now': datetime.now(),
+        }
+        return render(request, 'core/dashboard.html', context)
 
 
 
+from django.views.generic import ListView
+
+@method_decorator(login_required, name='dispatch')
+class CategoryListView(ListView):
+    model = Category
+    template_name = 'core/category_list.html'
+    context_object_name = 'categories'
 
 
 
-@login_required
-def dashboard_view(request):
-    total_events = Event.objects.count()
-    total_participants = Participant.objects.count()
-    upcoming_events = Event.objects.filter(date__gt=date.today()).count()
-    past_events = Event.objects.filter(date__lt=date.today()).count()
-    today_events = Event.objects.filter(date=date.today())
+from django.views.generic import ListView
+from django.utils.decorators import method_decorator
 
-    filter_type = request.GET.get('filter', 'all')
+@method_decorator(login_required, name='dispatch')
+class EventListView(ListView):
+    model = Event
+    template_name = 'core/event_list.html'
+    context_object_name = 'events'
 
-    if filter_type == 'upcoming':
-        events_list = Event.objects.filter(date__gt=date.today()).order_by('date')
-    elif filter_type == 'past':
-        events_list = Event.objects.filter(date__lt=date.today()).order_by('-date')
-    else:
-        events_list = Event.objects.all().order_by('date')
+    def get_queryset(self):
+        events = Event.objects.all()
+        category_id = self.request.GET.get('category')
+        start_date = self.request.GET.get('start_date')
+        end_date = self.request.GET.get('end_date')
 
-    events_list = events_list.annotate(participant_count=Count('participants')).select_related('category')
+        if category_id:
+            events = events.filter(category_id=category_id)
+        if start_date:
+            events = events.filter(date__gte=start_date)
+        if end_date:
+            events = events.filter(date__lte=end_date)
 
-    context = {
-        'total_events': total_events,
-        'total_participants': total_participants,
-        'upcoming_events': upcoming_events,
-        'past_events': past_events,
-        'today_events': today_events,
-        'events_list': events_list,
-        'filter_type': filter_type,
-        'now': datetime.now(),
-    }
-    return render(request, 'core/dashboard.html', context)
+        if self.request.user.groups.filter(name='Organizer').exists():
+            events = events.filter(created_by=self.request.user)
 
+        return events
 
-@login_required
-def category_list(request):
-    categories = Category.objects.all()
-    return render(request, 'core/category_list.html', {'categories': categories})
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['categories'] = Category.objects.all()
+        context['selected_category'] = self.request.GET.get('category')
+        context['start_date'] = self.request.GET.get('start_date')
+        context['end_date'] = self.request.GET.get('end_date')
+        return context
 
 
 
-@login_required
-def event_list(request):
-    events = Event.objects.all()
+from django.views.generic import ListView
+from django.utils.decorators import method_decorator
 
-    # Filter by category and date
-    category_id = request.GET.get('category')
-    start_date = request.GET.get('start_date')
-    end_date = request.GET.get('end_date')
+@method_decorator(login_required, name='dispatch')
+class ParticipantListView(ListView):
+    model = Participant
+    template_name = 'core/participant_list.html'
+    context_object_name = 'participants'
 
-    if category_id:
-        events = events.filter(category_id=category_id)
-    if start_date:
-        events = events.filter(date__gte=start_date)
-    if end_date:
-        events = events.filter(date__lte=end_date)
-
-    # Restrict organizers to only their own events
-    if request.user.groups.filter(name='Organizer').exists():
-        events = events.filter(created_by=request.user)
-
-    categories = Category.objects.all()
-
-    return render(request, 'core/event_list.html', {
-        'events': events,
-        'categories': categories,
-        'selected_category': category_id,
-        'start_date': start_date,
-        'end_date': end_date,
-    })
-
-@login_required
-def participant_list(request):
-    participants = Participant.objects.prefetch_related('events')
-    return render(request, 'core/participant_list.html', {'participants': participants})
+    def get_queryset(self):
+        return Participant.objects.prefetch_related('events')
 
 
-@login_required
-def search_events(request):
-    query = request.GET.get('q')
-    events = Event.objects.all()
-    if query:
-        events = events.filter(
-            Q(name__icontains=query) |
-            Q(location__icontains=query)
-        ).select_related('category')
-    return render(request, 'core/search_results.html', {'events': events, 'query': query})
+from django.views.generic import ListView
+from django.utils.decorators import method_decorator
+
+@method_decorator(login_required, name='dispatch')
+class EventSearchView(ListView):
+    model = Event
+    template_name = 'core/search_results.html'
+    context_object_name = 'events'
+
+    def get_queryset(self):
+        query = self.request.GET.get('q')
+        qs = Event.objects.all()
+        if query:
+            qs = qs.filter(
+                Q(name__icontains=query) |
+                Q(location__icontains=query)
+            ).select_related('category')
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['query'] = self.request.GET.get('q', '')
+        return context
+
 
 
 # Event CRUD

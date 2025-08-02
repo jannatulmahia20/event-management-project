@@ -1,5 +1,16 @@
 from django.db import models
-from django.contrib.auth.models import User
+from django.conf import settings
+from django.contrib.auth.models import AbstractUser
+
+def default_profile_pic():
+    return 'default_profile.jpg'
+
+class CustomUser(AbstractUser):
+    phone_number = models.CharField(max_length=15, blank=True)
+    profile_picture = models.ImageField(upload_to='profile_pics/', default=default_profile_pic)
+
+    def __str__(self):
+        return self.username
 
 class Category(models.Model):
     name = models.CharField(max_length=100)
@@ -20,8 +31,7 @@ class Event(models.Model):
         return self.name
 
 class Participant(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
-
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
     name = models.CharField(max_length=100)
     email = models.EmailField()
     events = models.ManyToManyField(Event, related_name='participants')
@@ -30,8 +40,6 @@ class Participant(models.Model):
 
     def __str__(self):
         return self.name
-
-
 
 class RSVP(models.Model):
     ATTENDING = 'attending'
@@ -45,10 +53,9 @@ class RSVP(models.Model):
 
     participant = models.ForeignKey(Participant, on_delete=models.CASCADE, related_name='rsvps')
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='rsvps')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=ATTENDING)
-    responded_at = models.DateTimeField(auto_now=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES)
-    comment = models.TextField(blank=True, null=True) 
+    responded_at = models.DateTimeField(auto_now=True)
+    comment = models.TextField(blank=True, null=True)
 
     class Meta:
         unique_together = ('participant', 'event')

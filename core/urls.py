@@ -4,18 +4,24 @@ from django.contrib.auth import views as auth_views
 from core.views import login_view
 from django.contrib.auth.views import LogoutView
 from .views import rsvp_create_or_update
+from .views import DashboardView
+from .views import CategoryListView
+from .views import EventListView
+from .views import ParticipantListView
+from .views import EventSearchView
 
 
 
 urlpatterns = [
-    path('', views.dashboard_view, name='dashboard'),  # root URL
+    path('', views.DashboardView.as_view(), name='dashboard'),
 
-    path('dashboard/', views.dashboard_view, name='dashboard'),
-    path('categories/', views.category_list, name='category_list'),
-    path('events/', views.event_list, name='event_list'),
-    path('participants/', views.participant_list, name='participant_list'),
 
-    path('events/search/', views.search_events, name='event_search'),
+    path('dashboard/', DashboardView.as_view(), name='dashboard'),
+    path('categories/', CategoryListView.as_view(), name='category_list'),
+    path('events/', EventListView.as_view(), name='event_list'),
+    path('participants/', ParticipantListView.as_view(), name='participant_list'),
+
+    path('search/', EventSearchView.as_view(), name='search_events'),
     path('events/<int:event_id>/rsvp/', views.rsvp_create_or_update, name='rsvp_create_or_update'),
     path('events/<int:event_id>/rsvp/', rsvp_create_or_update, name='rsvp'),
 
@@ -26,8 +32,7 @@ urlpatterns = [
     path('categories/create/', views.category_create, name='category_create'),
     path('categories/<int:pk>/edit/', views.category_update, name='category_update'),
     path('categories/<int:pk>/delete/', views.category_delete, name='category_delete'),
-    path('categories/', views.category_list, name='category_list'),
-
+    
     path('participants/create/', views.participant_create, name='participant_create'),
     path('participants/<int:pk>/edit/', views.participant_update, name='participant_update'),
     path('participants/<int:pk>/delete/', views.participant_delete, name='participant_delete'),
