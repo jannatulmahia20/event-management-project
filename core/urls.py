@@ -19,9 +19,12 @@ urlpatterns = [
     path('dashboard/', DashboardView.as_view(), name='dashboard'),
 
     path('categories/', CategoryListView.as_view(), name='category_list'),
-    path('categories/create/', views.category_create, name='category_create'),
-    path('categories/<int:pk>/edit/', views.category_update, name='category_update'),
-    path('categories/<int:pk>/delete/', views.category_delete, name='category_delete'),
+    path('categories/create/', views.CategoryCreateView.as_view(), name='category_create'),
+
+    path('categories/<int:pk>/edit/', views.CategoryUpdateView.as_view(), name='category_update'),
+
+    path('categories/<int:pk>/delete/', views.CategoryDeleteView.as_view(), name='category_delete'),
+
 
     path('events/', EventListView.as_view(), name='event_list'),
     path('events/add/', EventCreateView.as_view(), name='event-add'),
@@ -31,9 +34,10 @@ urlpatterns = [
     path('events/<int:event_id>/rsvp/', rsvp_create_or_update, name='rsvp'),
 
     path('participants/', ParticipantListView.as_view(), name='participant_list'),
-    path('participants/create/', views.participant_create, name='participant_create'),
-    path('participants/<int:pk>/edit/', views.participant_update, name='participant_update'),
-    path('participants/<int:pk>/delete/', views.participant_delete, name='participant_delete'),
+    path('participants/create/', views.ParticipantCreateView.as_view(), name='participant_create'),
+    path('participants/<int:pk>/edit/', views.ParticipantUpdateView.as_view(), name='participant_update'),
+    path('participants/<int:pk>/delete/', views.ParticipantDeleteView.as_view(), name='participant_delete'),
+
 
     path('search/', EventSearchView.as_view(), name='search_events'),
 

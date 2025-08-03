@@ -67,15 +67,75 @@ class DashboardView(View):
         return render(request, 'core/dashboard.html', context)
 
 
-# Category List View
+# Category Views
 @method_decorator(login_required, name='dispatch')
 class CategoryListView(ListView):
     model = Category
     template_name = 'core/category_list.html'
     context_object_name = 'categories'
 
+class CategoryCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    model = Category
+    fields = ['name']
+    template_name = 'core/category_form.html'
+    success_url = reverse_lazy('category_list')
 
-# Event List View
+    def test_func(self):
+        return self.request.user.groups.filter(name='Admin').exists()
+
+class CategoryUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    model = Category
+    fields = ['name']
+    template_name = 'core/category_form.html'
+    success_url = reverse_lazy('category_list')
+
+    def test_func(self):
+        return self.request.user.groups.filter(name='Admin').exists()
+
+class CategoryDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    model = Category
+    template_name = 'core/category_confirm_delete.html'
+    success_url = reverse_lazy('category_list')
+
+    def test_func(self):
+        return self.request.user.groups.filter(name='Admin').exists()
+
+
+# Participant Views
+@method_decorator(login_required, name='dispatch')
+class ParticipantListView(ListView):
+    model = Participant
+    template_name = 'core/participant_list.html'
+    context_object_name = 'participants'
+
+class ParticipantCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    model = Participant
+    fields = '__all__'
+    template_name = 'core/participant_form.html'
+    success_url = reverse_lazy('participant_list')
+
+    def test_func(self):
+        return self.request.user.groups.filter(name__in=['Admin', 'Organizer']).exists()
+
+class ParticipantUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    model = Participant
+    fields = '__all__'
+    template_name = 'core/participant_form.html'
+    success_url = reverse_lazy('participant_list')
+
+    def test_func(self):
+        return self.request.user.groups.filter(name__in=['Admin', 'Organizer']).exists()
+
+class ParticipantDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    model = Participant
+    template_name = 'core/participant_confirm_delete.html'
+    success_url = reverse_lazy('participant_list')
+
+    def test_func(self):
+        return self.request.user.groups.filter(name__in=['Admin', 'Organizer']).exists()
+
+
+# Event Views
 @method_decorator(login_required, name='dispatch')
 class EventListView(ListView):
     model = Event
@@ -108,16 +168,40 @@ class EventListView(ListView):
         context['end_date'] = self.request.GET.get('end_date')
         return context
 
+class EventCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    model = Event
+    form_class = EventForm
+    template_name = 'core/event_form.html'
+    success_url = reverse_lazy('event_list')
 
-# Participant List View
-@method_decorator(login_required, name='dispatch')
-class ParticipantListView(ListView):
-    model = Participant
-    template_name = 'core/participant_list.html'
-    context_object_name = 'participants'
+    def form_valid(self, form):
+        if self.request.user.groups.filter(name='Organizer').exists():
+            form.instance.created_by = self.request.user
+        return super().form_valid(form)
 
-    def get_queryset(self):
-        return Participant.objects.prefetch_related('events')
+    def test_func(self):
+        return self.request.user.groups.filter(name__in=['Admin', 'Organizer']).exists()
+
+class EventUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    model = Event
+    form_class = EventForm
+    template_name = 'core/event_form.html'
+    success_url = reverse_lazy('event_list')
+
+    def test_func(self):
+        event = self.get_object()
+        return (self.request.user == event.created_by or self.request.user.is_superuser) and \
+               self.request.user.groups.filter(name__in=['Admin', 'Organizer']).exists()
+
+class EventDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    model = Event
+    template_name = 'core/event_confirm_delete.html'
+    success_url = reverse_lazy('event_list')
+
+    def test_func(self):
+        event = self.get_object()
+        return (self.request.user == event.created_by or self.request.user.is_superuser) and \
+               self.request.user.groups.filter(name__in=['Admin', 'Organizer']).exists()
 
 
 # Event Search View
@@ -141,170 +225,6 @@ class EventSearchView(ListView):
         context = super().get_context_data(**kwargs)
         context['query'] = self.request.GET.get('q', '')
         return context
-
-
-# Event CRUD - Create
-class EventCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
-    model = Event
-    form_class = EventForm
-    template_name = 'core/event_form.html'
-    success_url = reverse_lazy('event_list')
-
-    def form_valid(self, form):
-        if self.request.user.groups.filter(name='Organizer').exists():
-            form.instance.created_by = self.request.user
-        return super().form_valid(form)
-
-    def test_func(self):
-        return self.request.user.groups.filter(name__in=['Admin', 'Organizer']).exists()
-
-
-# Event CRUD - Update
-class EventUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
-    model = Event
-    form_class = EventForm
-    template_name = 'core/event_form.html'
-    success_url = reverse_lazy('event_list')
-
-    def test_func(self):
-        event = self.get_object()
-        return (self.request.user == event.created_by or self.request.user.is_superuser) and \
-               self.request.user.groups.filter(name__in=['Admin', 'Organizer']).exists()
-
-
-# Event CRUD - Delete
-class EventDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
-    model = Event
-    template_name = 'core/event_confirm_delete.html'
-    success_url = reverse_lazy('event_list')
-
-    def test_func(self):
-        event = self.get_object()
-        return (self.request.user == event.created_by or self.request.user.is_superuser) and \
-               self.request.user.groups.filter(name__in=['Admin', 'Organizer']).exists()
-
-
-# Category CRUD - Create
-@login_required
-@group_required('Admin')
-def category_create(request):
-    if request.method == 'POST':
-        form = CategoryForm(request.POST)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Category created successfully.")
-            return redirect('category_list')
-    else:
-        form = CategoryForm()
-    return render(request, 'core/category_form.html', {'form': form})
-
-
-# Category CRUD - Update
-@login_required
-@group_required('Admin')
-def category_update(request, pk):
-    category = get_object_or_404(Category, pk=pk)
-    if request.method == 'POST':
-        form = CategoryForm(request.POST, instance=category)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Category updated successfully.")
-            return redirect('category_list')
-    else:
-        form = CategoryForm(instance=category)
-    return render(request, 'core/category_form.html', {'form': form})
-
-
-# Category CRUD - Delete
-@login_required
-@group_required('Admin')
-def category_delete(request, pk):
-    category = get_object_or_404(Category, pk=pk)
-    if request.method == 'POST':
-        category.delete()
-        messages.success(request, "Category deleted successfully.")
-        return redirect('category_list')
-    return render(request, 'core/category_confirm_delete.html', {'category': category})
-
-
-# Participant CRUD - Create
-@login_required
-@group_required('Admin', 'Organizer')
-def participant_create(request):
-    if request.method == 'POST':
-        form = ParticipantForm(request.POST)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Participant created successfully.")
-            return redirect('participant_list')
-    else:
-        form = ParticipantForm()
-    return render(request, 'core/participant_form.html', {'form': form})
-
-
-# Participant CRUD - Update
-@login_required
-def participant_update(request, pk):
-    participant = get_object_or_404(Participant, pk=pk)
-    if request.method == 'POST':
-        form = ParticipantForm(request.POST, instance=participant)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Participant updated successfully.")
-            return redirect('participant_list')
-    else:
-        form = ParticipantForm(instance=participant)
-    return render(request, 'core/participant_form.html', {'form': form})
-
-
-# Participant CRUD - Delete
-@login_required
-def participant_delete(request, pk):
-    participant = get_object_or_404(Participant, pk=pk)
-    if request.method == 'POST':
-        participant.delete()
-        messages.success(request, "Participant deleted successfully.")
-        return redirect('participant_list')
-    return render(request, 'core/participant_confirm_delete.html', {'participant': participant})
-
-
-# Auth - Signup
-def signup_view(request):
-    if request.method == 'POST':
-        form = SignupForm(request.POST)
-        if form.is_valid():
-            user = form.save(commit=False)
-            user.is_active = False
-            user.save()
-            # Add sending activation email logic here if needed
-            messages.success(request, 'Account created! Please check your email to activate your account.')
-            return redirect('login')
-        else:
-            messages.error(request, 'Please provide correct info.')
-    else:
-        form = SignupForm()
-    return render(request, 'core/signup.html', {'form': form})
-
-
-# Auth - Login
-def login_view(request):
-    if request.method == 'POST':
-        form = AuthenticationForm(request, data=request.POST)
-        if form.is_valid():
-            username = form.cleaned_data.get('username')
-            password = form.cleaned_data.get('password')
-            user = authenticate(request, username=username, password=password)
-            if user is not None and user.is_active:
-                login(request, user)
-                messages.success(request, f"Welcome back, {user.username}!")
-                return redirect('dashboard')
-            else:
-                messages.error(request, "Invalid credentials or inactive account.")
-        else:
-            messages.error(request, "Invalid username or password.")
-    else:
-        form = AuthenticationForm()
-    return render(request, 'core/login.html', {'form': form})
 
 
 # RSVP Create or Update
@@ -331,14 +251,48 @@ def rsvp_create_or_update(request, event_id):
     return render(request, 'core/rsvp_form.html', {'form': form, 'event': event})
 
 
-# Profile View
+# Auth Views
+def signup_view(request):
+    if request.method == 'POST':
+        form = SignupForm(request.POST)
+        if form.is_valid():
+            user = form.save(commit=False)
+            user.is_active = False
+            user.save()
+            messages.success(request, 'Account created! Please check your email to activate your account.')
+            return redirect('login')
+        else:
+            messages.error(request, 'Please provide correct info.')
+    else:
+        form = SignupForm()
+    return render(request, 'core/signup.html', {'form': form})
+
+def login_view(request):
+    if request.method == 'POST':
+        form = AuthenticationForm(request, data=request.POST)
+        if form.is_valid():
+            username = form.cleaned_data.get('username')
+            password = form.cleaned_data.get('password')
+            user = authenticate(request, username=username, password=password)
+            if user is not None and user.is_active:
+                login(request, user)
+                messages.success(request, f"Welcome back, {user.username}!")
+                return redirect('dashboard')
+            else:
+                messages.error(request, "Invalid credentials or inactive account.")
+        else:
+            messages.error(request, "Invalid username or password.")
+    else:
+        form = AuthenticationForm()
+    return render(request, 'core/login.html', {'form': form})
+
+
+# Profile Views
 @login_required
 def profile_view(request):
     participant = get_object_or_404(Participant, user=request.user)
     return render(request, 'core/profile.html', {'participant': participant})
 
-
-# Profile Edit
 @login_required
 def profile_edit(request):
     participant = get_object_or_404(Participant, user=request.user)
