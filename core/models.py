@@ -1,5 +1,12 @@
 from django.db import models
-from django.contrib.auth.models import User
+from django.contrib.auth.models import AbstractUser
+from django.conf import settings
+
+
+class CustomUser(AbstractUser):
+    
+    pass
+
 
 class Category(models.Model):
     name = models.CharField(max_length=100)
@@ -20,7 +27,7 @@ class Event(models.Model):
         return self.name
 
 class Participant(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
 
     name = models.CharField(max_length=100)
     email = models.EmailField()
@@ -55,3 +62,4 @@ class RSVP(models.Model):
 
     def __str__(self):
         return f"{self.participant.name} - {self.event.name} ({self.status})"
+
