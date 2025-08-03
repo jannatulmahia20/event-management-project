@@ -288,31 +288,62 @@ def login_view(request):
 
 
 # Profile Views
-@login_required
-def profile_view(request):
-    participant = get_object_or_404(Participant, user=request.user)
-    return render(request, 'core/profile.html', {'participant': participant})
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views.generic.detail import DetailView
+from django.contrib.auth import get_user_model
 
-@login_required
-def profile_edit(request):
-    participant = get_object_or_404(Participant, user=request.user)
+User = get_user_model()
 
-    if request.method == 'POST':
+class ProfileDetailView(LoginRequiredMixin, DetailView):
+    model = User
+    template_name = 'core/profile.html'
+    
+    def get_object(self, queryset=None):
+        return self.request.user
+
+
+from django.views.generic.edit import FormView
+from django.shortcuts import redirect
+from django.contrib.auth.mixins import LoginRequiredMixin
+from .forms import UserUpdateForm, ParticipantUpdateForm
+from .models import Participant
+from django.contrib import messages
+
+class ProfileUpdateView(LoginRequiredMixin, FormView):
+    template_name = 'core/profile_edit.html'
+    success_url = reverse_lazy('profile')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        participant = Participant.objects.get(user=self.request.user)
+        if self.request.method in ('POST', 'PUT'):
+            kwargs['user_form'] = UserUpdateForm(self.request.POST, instance=self.request.user)
+            kwargs['participant_form'] = ParticipantUpdateForm(self.request.POST, instance=participant)
+        else:
+            kwargs['user_form'] = UserUpdateForm(instance=self.request.user)
+            kwargs['participant_form'] = ParticipantUpdateForm(instance=participant)
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(self.get_form_kwargs())
+        return context
+
+    def post(self, request, *args, **kwargs):
         user_form = UserUpdateForm(request.POST, instance=request.user)
+        participant = Participant.objects.get(user=request.user)
         participant_form = ParticipantUpdateForm(request.POST, instance=participant)
+
         if user_form.is_valid() and participant_form.is_valid():
             user_form.save()
             participant_form.save()
             messages.success(request, 'Your profile has been updated.')
-            return redirect('profile')
-    else:
-        user_form = UserUpdateForm(instance=request.user)
-        participant_form = ParticipantUpdateForm(instance=participant)
-
-    return render(request, 'core/profile_edit.html', {
-        'user_form': user_form,
-        'participant_form': participant_form,
-    })
+            return redirect(self.success_url)
+        else:
+            return self.render_to_response(self.get_context_data(
+                user_form=user_form,
+                participant_form=participant_form
+            ))
 
 
 # Account Activation

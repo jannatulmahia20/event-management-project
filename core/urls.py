@@ -1,6 +1,8 @@
 from django.urls import path
 from django.contrib.auth.views import LogoutView
 from . import views
+from .views import ProfileDetailView
+from .views import ProfileUpdateView
 from .views import (
     login_view,
     rsvp_create_or_update,
@@ -45,8 +47,8 @@ urlpatterns = [
     path('login/', login_view, name='login'),
     path('logout/', LogoutView.as_view(next_page='login'), name='logout'),
 
-    path('profile/', views.profile_view, name='profile'),
-    path('profile/edit/', views.profile_edit, name='profile_edit'),
+    path('profile/', ProfileDetailView.as_view(), name='profile'),
+    path('profile/edit/', ProfileUpdateView.as_view(), name='profile_edit'),
 
     path('activate/<uidb64>/<token>/', views.activate_account, name='activate'),
 ]
