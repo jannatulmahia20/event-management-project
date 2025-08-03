@@ -16,8 +16,8 @@
           <a href="{% url 'event_list' %}" class="hover:underline">Events</a>
           <a href="{% url 'category_list' %}" class="hover:underline">Categories</a>
           <a href="{% url 'participant_list' %}" class="hover:underline">Participants</a>
-          <a href="{% url 'event_search' %}?q=" class="hover:underline">Search</a>
-      
+          <a href="{% url 'search_events' %}?q=" class="hover:underline">Search</a>
+
           {% if user.is_authenticated %}
           <form method="post" action="{% url 'logout' %}" style="display:inline;">
             {% csrf_token %}
