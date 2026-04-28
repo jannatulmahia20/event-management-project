@@ -4,7 +4,6 @@ from django.conf import settings
 
 
 class CustomUser(AbstractUser):
-    
     pass
 
 
@@ -15,6 +14,7 @@ class Category(models.Model):
     def __str__(self):
         return self.name
 
+
 class Event(models.Model):
     name = models.CharField(max_length=200)
     description = models.TextField()
@@ -22,13 +22,14 @@ class Event(models.Model):
     time = models.TimeField()
     location = models.CharField(max_length=200)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='events')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_events')  # ✅ Added this
 
     def __str__(self):
         return self.name
 
+
 class Participant(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
-
     name = models.CharField(max_length=100)
     email = models.EmailField()
     events = models.ManyToManyField(Event, related_name='participants')
@@ -37,7 +38,6 @@ class Participant(models.Model):
 
     def __str__(self):
         return self.name
-
 
 
 class RSVP(models.Model):
@@ -52,14 +52,12 @@ class RSVP(models.Model):
 
     participant = models.ForeignKey(Participant, on_delete=models.CASCADE, related_name='rsvps')
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='rsvps')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=ATTENDING)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=ATTENDING)  
     responded_at = models.DateTimeField(auto_now=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
-    comment = models.TextField(blank=True, null=True) 
+    comment = models.TextField(blank=True, null=True)
 
     class Meta:
         unique_together = ('participant', 'event')
 
     def __str__(self):
         return f"{self.participant.name} - {self.event.name} ({self.status})"
-

@@ -2,11 +2,10 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404, redirect
 from django.db.models import Count, Q
 from django.contrib import messages
-from django.http import HttpResponse
 from datetime import datetime, date
 
 from django.contrib.auth.forms import AuthenticationForm
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, get_user_model
 
 from .models import Category, Event, Participant, RSVP
 from .forms import EventForm, CategoryForm, ParticipantForm, SignupForm, RSVPForm
@@ -23,11 +22,8 @@ from django.utils.encoding import force_bytes, force_str
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
 from django.conf import settings
-from django.contrib.auth.models import User
 
-
-
-
+User = get_user_model()  # ✅ Always use this instead of importing User directly
 
 
 @login_required
@@ -68,12 +64,10 @@ def category_list(request):
     return render(request, 'core/category_list.html', {'categories': categories})
 
 
-
 @login_required
 def event_list(request):
     events = Event.objects.all()
 
-    # Filter by category and date
     category_id = request.GET.get('category')
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
@@ -85,7 +79,6 @@ def event_list(request):
     if end_date:
         events = events.filter(date__lte=end_date)
 
-    # Restrict organizers to only their own events
     if request.user.groups.filter(name='Organizer').exists():
         events = events.filter(created_by=request.user)
 
@@ -98,6 +91,7 @@ def event_list(request):
         'start_date': start_date,
         'end_date': end_date,
     })
+
 
 @login_required
 def participant_list(request):
@@ -125,11 +119,8 @@ def event_create(request):
         form = EventForm(request.POST)
         if form.is_valid():
             event = form.save(commit=False)
-
-            # Assign created_by only if user is an Organizer
             if request.user.groups.filter(name='Organizer').exists():
                 event.created_by = request.user
-
             event.save()
             messages.success(request, "Event created successfully.")
             return redirect('event_list')
@@ -143,7 +134,6 @@ def event_create(request):
 def event_update(request, pk):
     event = get_object_or_404(Event, pk=pk)
 
-    # Restrict access to only the creator or admin
     if request.user != event.created_by and not request.user.is_superuser:
         raise PermissionDenied
 
@@ -158,13 +148,11 @@ def event_update(request, pk):
     return render(request, 'core/event_form.html', {'form': form})
 
 
-
 @login_required
 @group_required('Admin', 'Organizer')
 def event_delete(request, pk):
     event = get_object_or_404(Event, pk=pk)
 
-    # Restrict access to only the creator or admin
     if request.user != event.created_by and not request.user.is_superuser:
         raise PermissionDenied
 
@@ -256,8 +244,6 @@ def participant_delete(request, pk):
 
 
 # Auth Views
-
-
 def signup_view(request):
     if request.method == 'POST':
         form = SignupForm(request.POST)
@@ -265,7 +251,6 @@ def signup_view(request):
             user = form.save(commit=False)
             user.is_active = False
             user.save()
-            # send activation email (your existing code)...
             messages.success(request, 'Account created! Please check your email to activate your account.')
             return redirect('login')
         else:
@@ -273,7 +258,6 @@ def signup_view(request):
     else:
         form = SignupForm()
     return render(request, 'core/signup.html', {'form': form})
-
 
 
 def login_view(request):
@@ -320,15 +304,10 @@ def rsvp_create_or_update(request, event_id):
     return render(request, 'core/rsvp_form.html', {'form': form, 'event': event})
 
 
-
-
 @login_required
 def profile_view(request):
     participant = get_object_or_404(Participant, user=request.user)
     return render(request, 'core/profile.html', {'participant': participant})
-
-
-
 
 
 @login_required
@@ -353,14 +332,11 @@ def profile_edit(request):
     })
 
 
-
-from django.contrib.auth import get_user_model
-
 def activate_account(request, uidb64, token):
     try:
         uid = force_str(urlsafe_base64_decode(uidb64))
-        user = get_user_model().objects.get(pk=uid)
-    except (TypeError, ValueError, OverflowError, get_user_model().DoesNotExist):
+        user = User.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
         user = None
 
     if user and default_token_generator.check_token(user, token):
