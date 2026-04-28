@@ -346,3 +346,56 @@ def activate_account(request, uidb64, token):
         return redirect('login')
     else:
         return render(request, 'core/account_activation_invalid.html')
+    
+from django.db.models import Count, Q, Sum
+
+def dashboard_view(request):
+    total_events = Event.objects.count()
+    total_participants = Participant.objects.count()
+    upcoming_events = Event.objects.filter(date__gt=date.today()).count()
+    past_events = Event.objects.filter(date__lt=date.today()).count()
+    today_events = Event.objects.filter(date=date.today())
+
+    # ✅ Aggregate: total participants across all events
+    total_participants_across_events = Event.objects.aggregate(
+        total=Count('participants')
+    )['total']
+
+    filter_type = request.GET.get('filter', 'all')
+
+    if filter_type == 'upcoming':
+        events_list = Event.objects.filter(date__gt=date.today()).order_by('date')
+    elif filter_type == 'past':
+        events_list = Event.objects.filter(date__lt=date.today()).order_by('-date')
+    else:
+        events_list = Event.objects.all().order_by('date')
+
+    
+    events_list = events_list.annotate(
+        participant_count=Count('participants')
+    ).select_related('category').prefetch_related('participants')
+
+    context = {
+        'total_events': total_events,
+        'total_participants': total_participants,
+        'total_participants_across_events': total_participants_across_events,  
+        'upcoming_events': upcoming_events,
+        'past_events': past_events,
+        'today_events': today_events,
+        'events_list': events_list,
+        'filter_type': filter_type,
+        'now': datetime.now(),
+    }
+    return render(request, 'core/dashboard.html', context)
+@login_required
+def event_detail(request, pk):
+    # ✅ Optimized with select_related and prefetch_related
+    event = get_object_or_404(
+        Event.objects.select_related('category').prefetch_related('participants'),
+        pk=pk
+    )
+    total_participants = event.participants.count()
+    return render(request, 'core/event_detail.html', {
+        'event': event,
+        'total_participants': total_participants,
+    })

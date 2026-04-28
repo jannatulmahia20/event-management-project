@@ -38,4 +38,5 @@ urlpatterns = [
     path('profile/', views.profile_view, name='profile'),
     path('profile/edit/', views.profile_edit, name='profile_edit'),
     path('activate/<uidb64>/<token>/', views.activate_account, name='activate'),
+    path('events/<int:pk>/', views.event_detail, name='event_detail'),
 ]
